@@ -46,20 +46,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { MoreHorizontal, Pencil, Trash2 } from "lucide-react"
 
 // Define Lead type based on Supabase screenshot/schema
-type Lead = {
-    id: string
-    created_at: string
-    contato_principal?: string
-    empresa: string
-    status: "New" | "Contacted" | "Qualified" | "Proposal" | "Won" | "Lost"
-    ticket_total_rs?: number
-    ticket_mensal_rs?: number
-    origem?: "AliveAI" | "Zellgo"
-    avatar_url?: string
-    produto_oferta?: string
-    mes_competencia?: string // Date string
-    obs?: string
-}
+import { Lead } from "@/lib/types"
 
 const STATUS_COLORS = {
     New: "bg-blue-100 text-blue-800 hover:bg-blue-100",
@@ -80,7 +67,7 @@ export default function LeadsPage() {
     // Form State
     const [company, setCompany] = useState("")
     const [source, setSource] = useState<"AliveAI" | "Zellgo">("AliveAI")
-    const [status, setStatus] = useState<string>("New")
+    const [status, setStatus] = useState<Lead['status']>("New")
     const [ticketTotal, setTicketTotal] = useState("")
     const [ticketMonthly, setTicketMonthly] = useState("")
     const [contactName, setContactName] = useState("")
@@ -169,7 +156,7 @@ export default function LeadsPage() {
     const handleStatusChange = async (leadId: string, newStatus: string) => {
         // Optimistic update
         setLeads(leads.map(lead =>
-            lead.id === leadId ? { ...lead, status: newStatus as any } : lead
+            lead.id === leadId ? { ...lead, status: newStatus as Lead['status'] } : lead
         ))
 
         try {
@@ -276,7 +263,7 @@ export default function LeadsPage() {
                                 </div>
                                 <div className="grid gap-2">
                                     <Label htmlFor="status">Status</Label>
-                                    <Select onValueChange={setStatus} defaultValue={status}>
+                                    <Select onValueChange={(val) => setStatus(val as Lead['status'])} defaultValue={status}>
                                         <SelectTrigger>
                                             <SelectValue placeholder="Selecione" />
                                         </SelectTrigger>

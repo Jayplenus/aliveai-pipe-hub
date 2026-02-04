@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { DollarSign, Users, Activity } from "lucide-react"
 import { supabase } from "@/lib/supabase"
+import { Lead } from "@/lib/types"
 
 type DashboardStats = {
   aliveAiTotal: number
@@ -11,7 +12,7 @@ type DashboardStats = {
   zellgoTotal: number
   zellgoMonthly: number
   totalLeads: number
-  recentLeads: any[]
+  recentLeads: Lead[]
 }
 
 export default function Home() {
