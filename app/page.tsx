@@ -41,7 +41,8 @@ type DashboardStats = {
   zellgoMonthly: number
   totalLeads: number
   recentLeads: Lead[]
-  projections: MonthlyProjection[]
+  projectionsAliveAi: MonthlyProjection[]
+  projectionsZellgo: MonthlyProjection[]
 }
 
 export default function Home() {
@@ -52,7 +53,8 @@ export default function Home() {
     zellgoMonthly: 0,
     totalLeads: 0,
     recentLeads: [],
-    projections: []
+    projectionsAliveAi: [],
+    projectionsZellgo: []
   })
   const [loading, setLoading] = useState(true)
 
@@ -78,23 +80,28 @@ export default function Home() {
 
           // --- Projection Logic ---
           const next3Months = getNextThreeMonths()
-          const projections = next3Months.map(m => {
-            // Filter leads that belong to this month competence
-            const monthLeads = leads.filter(l => {
-              if (!l.mes_competencia) return false
-              return l.mes_competencia.startsWith(m.key)
+
+          const calculateProjections = (sourceLeads: Lead[]) => {
+            return next3Months.map(m => {
+              const monthLeads = sourceLeads.filter(l => {
+                if (!l.mes_competencia) return false
+                return l.mes_competencia.startsWith(m.key)
+              })
+
+              const totalOneTime = monthLeads.reduce((sum, l) => sum + (l.ticket_total_rs || 0), 0)
+              const totalRecurring = monthLeads.reduce((sum, l) => sum + (l.ticket_mensal_rs || 0), 0)
+
+              return {
+                label: m.label,
+                key: m.key,
+                totalOneTime,
+                totalRecurring
+              }
             })
+          }
 
-            const totalOneTime = monthLeads.reduce((sum, l) => sum + (l.ticket_total_rs || 0), 0)
-            const totalRecurring = monthLeads.reduce((sum, l) => sum + (l.ticket_mensal_rs || 0), 0)
-
-            return {
-              label: m.label,
-              key: m.key,
-              totalOneTime,
-              totalRecurring
-            }
-          })
+          const projectionsAliveAi = calculateProjections(aliveAiLeads)
+          const projectionsZellgo = calculateProjections(zellgoLeads)
 
           setStats({
             aliveAiTotal,
@@ -103,7 +110,8 @@ export default function Home() {
             zellgoMonthly,
             totalLeads: leads.length,
             recentLeads: leads.slice(0, 5),
-            projections
+            projectionsAliveAi,
+            projectionsZellgo
           })
         }
       } catch (error) {
@@ -206,29 +214,32 @@ export default function Home() {
         </Card>
       </div>
 
-      {/* Provisão de Receita (Próximos 3 Meses) */}
+      {/* Provisão de Receita AliveAI */}
       <div className="space-y-4">
-        <h2 className="text-xl font-bold tracking-tight">Provisão de Receita</h2>
+        <h2 className="text-xl font-bold tracking-tight flex items-center gap-2">
+          <span className="w-2 h-6 bg-blue-500 rounded-full inline-block"></span>
+          Provisão de Receita AliveAI
+        </h2>
         <div className="grid gap-4 md:grid-cols-3">
-          {stats.projections.map((proj, idx) => (
-            <Card key={idx} className="border-t-4 border-t-amber-500 shadow-sm bg-slate-50/50">
+          {stats.projectionsAliveAi.map((proj, idx) => (
+            <Card key={idx} className="border-t-4 border-t-blue-500 shadow-sm bg-slate-50/50">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground capitalize">
                   {proj.label}
                 </CardTitle>
-                <DollarSign className="h-4 w-4 text-amber-500" />
+                <DollarSign className="h-4 w-4 text-blue-500" />
               </CardHeader>
               <CardContent>
                 <div className="space-y-1">
                   <div className="flex justify-between items-end">
                     <span className="text-xs text-muted-foreground">Pontual</span>
-                    <span className="text-lg font-bold text-amber-700">
+                    <span className="text-lg font-bold text-blue-700">
                       {loading ? "..." : formatCurrency(proj.totalOneTime)}
                     </span>
                   </div>
                   <div className="flex justify-between items-end">
                     <span className="text-xs text-muted-foreground">Recorrente (Novo)</span>
-                    <span className="text-lg font-bold text-amber-600">
+                    <span className="text-lg font-bold text-blue-600">
                       {loading ? "..." : formatCurrency(proj.totalRecurring)}
                     </span>
                   </div>
@@ -238,6 +249,43 @@ export default function Home() {
           ))}
         </div>
       </div>
+
+      {/* Provisão de Receita Zellgo */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-bold tracking-tight flex items-center gap-2">
+          <span className="w-2 h-6 bg-green-500 rounded-full inline-block"></span>
+          Provisão de Receita Zellgo
+        </h2>
+        <div className="grid gap-4 md:grid-cols-3">
+          {stats.projectionsZellgo.map((proj, idx) => (
+            <Card key={idx} className="border-t-4 border-t-green-500 shadow-sm bg-slate-50/50">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground capitalize">
+                  {proj.label}
+                </CardTitle>
+                <DollarSign className="h-4 w-4 text-green-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-1">
+                  <div className="flex justify-between items-end">
+                    <span className="text-xs text-muted-foreground">Pontual</span>
+                    <span className="text-lg font-bold text-green-700">
+                      {loading ? "..." : formatCurrency(proj.totalOneTime)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-end">
+                    <span className="text-xs text-muted-foreground">Recorrente (Novo)</span>
+                    <span className="text-lg font-bold text-green-600">
+                      {loading ? "..." : formatCurrency(proj.totalRecurring)}
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="col-span-1">
