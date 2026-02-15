@@ -6,6 +6,34 @@ import { DollarSign, Users, Activity } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { Lead } from "@/lib/types"
 
+/* Helper to get next 3 months */
+function getNextThreeMonths() {
+  const months = []
+  const today = new Date()
+
+  for (let i = 0; i < 3; i++) {
+    const d = new Date(today.getFullYear(), today.getMonth() + i, 1)
+    const label = d.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })
+    // Key format: YYYY-MM-DD (we only care about YYYY-MM match)
+    // Actually, mes_competencia is likely YYYY-MM-DD. 
+    // We'll match based on substring(0, 7) assuming ISO string or similar 
+    // However, typical input type='date' values are YYYY-MM-DD.
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const key = `${year}-${month}`
+
+    months.push({ label, key, year, month })
+  }
+  return months
+}
+
+type MonthlyProjection = {
+  label: string
+  key: string
+  totalOneTime: number
+  totalRecurring: number
+}
+
 type DashboardStats = {
   aliveAiTotal: number
   aliveAiMonthly: number
@@ -13,6 +41,7 @@ type DashboardStats = {
   zellgoMonthly: number
   totalLeads: number
   recentLeads: Lead[]
+  projections: MonthlyProjection[]
 }
 
 export default function Home() {
@@ -22,7 +51,8 @@ export default function Home() {
     zellgoTotal: 0,
     zellgoMonthly: 0,
     totalLeads: 0,
-    recentLeads: []
+    recentLeads: [],
+    projections: []
   })
   const [loading, setLoading] = useState(true)
 
@@ -46,13 +76,34 @@ export default function Home() {
           const zellgoTotal = zellgoLeads.reduce((sum, l) => sum + (l.ticket_total_rs || 0), 0)
           const zellgoMonthly = zellgoLeads.reduce((sum, l) => sum + (l.ticket_mensal_rs || 0), 0)
 
+          // --- Projection Logic ---
+          const next3Months = getNextThreeMonths()
+          const projections = next3Months.map(m => {
+            // Filter leads that belong to this month competence
+            const monthLeads = leads.filter(l => {
+              if (!l.mes_competencia) return false
+              return l.mes_competencia.startsWith(m.key)
+            })
+
+            const totalOneTime = monthLeads.reduce((sum, l) => sum + (l.ticket_total_rs || 0), 0)
+            const totalRecurring = monthLeads.reduce((sum, l) => sum + (l.ticket_mensal_rs || 0), 0)
+
+            return {
+              label: m.label,
+              key: m.key,
+              totalOneTime,
+              totalRecurring
+            }
+          })
+
           setStats({
             aliveAiTotal,
             aliveAiMonthly,
             zellgoTotal,
             zellgoMonthly,
             totalLeads: leads.length,
-            recentLeads: leads.slice(0, 5)
+            recentLeads: leads.slice(0, 5),
+            projections
           })
         }
       } catch (error) {
@@ -155,6 +206,39 @@ export default function Home() {
         </Card>
       </div>
 
+      {/* Provisão de Receita (Próximos 3 Meses) */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-bold tracking-tight">Provisão de Receita</h2>
+        <div className="grid gap-4 md:grid-cols-3">
+          {stats.projections.map((proj, idx) => (
+            <Card key={idx} className="border-t-4 border-t-amber-500 shadow-sm bg-slate-50/50">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground capitalize">
+                  {proj.label}
+                </CardTitle>
+                <DollarSign className="h-4 w-4 text-amber-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-1">
+                  <div className="flex justify-between items-end">
+                    <span className="text-xs text-muted-foreground">Pontual</span>
+                    <span className="text-lg font-bold text-amber-700">
+                      {loading ? "..." : formatCurrency(proj.totalOneTime)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-end">
+                    <span className="text-xs text-muted-foreground">Recorrente (Novo)</span>
+                    <span className="text-lg font-bold text-amber-600">
+                      {loading ? "..." : formatCurrency(proj.totalRecurring)}
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="col-span-1">
           <CardHeader>
@@ -200,3 +284,4 @@ export default function Home() {
     </div>
   )
 }
+
