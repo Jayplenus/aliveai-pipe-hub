@@ -43,6 +43,7 @@ type DashboardStats = {
   recentLeads: Lead[]
   projectionsAliveAi: MonthlyProjection[]
   projectionsZellgo: MonthlyProjection[]
+  conversionRate: number
 }
 
 export default function Home() {
@@ -54,7 +55,8 @@ export default function Home() {
     totalLeads: 0,
     recentLeads: [],
     projectionsAliveAi: [],
-    projectionsZellgo: []
+    projectionsZellgo: [],
+    conversionRate: 0
   })
   const [loading, setLoading] = useState(true)
 
@@ -72,18 +74,15 @@ export default function Home() {
           const aliveAiLeads = leads.filter(l => l.origem === 'AliveAI')
           const zellgoLeads = leads.filter(l => l.origem === 'Zellgo')
 
-          const aliveAiTotal = aliveAiLeads.reduce((sum, l) => sum + (l.ticket_total_rs || 0), 0)
-          const aliveAiMonthly = aliveAiLeads.reduce((sum, l) => sum + (l.ticket_mensal_rs || 0), 0)
-
-          const zellgoTotal = zellgoLeads.reduce((sum, l) => sum + (l.ticket_total_rs || 0), 0)
-          const zellgoMonthly = zellgoLeads.reduce((sum, l) => sum + (l.ticket_mensal_rs || 0), 0)
-
           // --- Projection Logic ---
           const next3Months = getNextThreeMonths()
 
           const calculateProjections = (sourceLeads: Lead[]) => {
+            // Exclude "Lost" leads from projections
+            const activeLeads = sourceLeads.filter(l => l.status !== 'Lost')
+
             return next3Months.map(m => {
-              const monthLeads = sourceLeads.filter(l => {
+              const monthLeads = activeLeads.filter(l => {
                 if (!l.mes_competencia) return false
                 return l.mes_competencia.startsWith(m.key)
               })
@@ -103,6 +102,22 @@ export default function Home() {
           const projectionsAliveAi = calculateProjections(aliveAiLeads)
           const projectionsZellgo = calculateProjections(zellgoLeads)
 
+          // Revenue metrics only for "Won" leads
+          const wonLeads = leads.filter(l => l.status === 'Won')
+          const wonAliveAi = wonLeads.filter(l => l.origem === 'AliveAI')
+          const wonZellgo = wonLeads.filter(l => l.origem === 'Zellgo')
+
+          const aliveAiTotal = wonAliveAi.reduce((sum, l) => sum + (l.ticket_total_rs || 0), 0)
+          const aliveAiMonthly = wonAliveAi.reduce((sum, l) => sum + (l.ticket_mensal_rs || 0), 0)
+
+          const zellgoTotal = wonZellgo.reduce((sum, l) => sum + (l.ticket_total_rs || 0), 0)
+          const zellgoMonthly = wonZellgo.reduce((sum, l) => sum + (l.ticket_mensal_rs || 0), 0)
+
+          // Conversion Rate: (Won Leads / Total Leads excluding Lost?) 
+          // Let's use Won / Total as a simple metric, or Won / (Total - New if they are just incoming)
+          // Simple: Won / Total
+          const conversionRate = leads.length > 0 ? (wonLeads.length / leads.length) * 100 : 0
+
           setStats({
             aliveAiTotal,
             aliveAiMonthly,
@@ -111,7 +126,8 @@ export default function Home() {
             totalLeads: leads.length,
             recentLeads: leads.slice(0, 5),
             projectionsAliveAi,
-            projectionsZellgo
+            projectionsZellgo,
+            conversionRate
           })
         }
       } catch (error) {
@@ -201,15 +217,17 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        {/* Conversion Stats (Partial) */}
+        {/* Conversion Stats */}
         <Card className="shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Conversão</CardTitle>
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">-</div>
-            <p className="text-xs text-muted-foreground">Dados insuficientes</p>
+            <div className="text-2xl font-bold">
+              {loading ? "..." : `${stats.conversionRate.toFixed(1)}%`}
+            </div>
+            <p className="text-xs text-muted-foreground">Percentual de leads convertidos (WON)</p>
           </CardContent>
         </Card>
       </div>
