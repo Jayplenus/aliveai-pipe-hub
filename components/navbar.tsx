@@ -6,7 +6,7 @@ export function Navbar() {
             <div className="flex h-16 items-center px-4 container mx-auto">
                 <div className="mr-8 flex">
                     <Link href="/" className="mr-6 flex items-center space-x-2 font-bold text-xl">
-                        AliveAI Sales Hub
+                        zellgo-aliveAI-pipe
                     </Link>
                     <nav className="flex items-center space-x-6 text-sm font-medium">
                         <Link href="/" className="transition-colors hover:text-foreground/80 text-foreground">Dashboard</Link>
